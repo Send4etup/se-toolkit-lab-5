@@ -24,7 +24,7 @@ sequenceDiagram
     participant DB as "PostgreSQL<br/>(Database)"
     participant pgAdmin as "pgAdmin<br/>(DB UI)"
 
-    Note over Developer,pgAdmin: Task Flow: POST /interactions → Verify in Database
+    Note over Developer,pgAdmin: Task Flow: POST /learners/ → Verify in Database
 
     Developer->>Browser: Open Swagger UI<br/>http://<your-vm-ip-address>:<caddy-port>/docs
     Browser->>Caddy: GET /docs
@@ -32,15 +32,15 @@ sequenceDiagram
 
     Note over Developer,Browser: Authorize with API_KEY
 
-    Developer->>Browser: POST /interactions<br/>{learner_id: 1, item_id: 1, kind: "attempt"}
-    Browser->>Caddy: POST /interactions<br/>Authorization: Bearer API_KEY
-    Caddy->>API: Proxy POST /interactions
+    Developer->>Browser: POST /learners/<br/>{name: "John Doe", email: "john-doe@email.com"}
+    Browser->>Caddy: POST /learners/<br/>Authorization: Bearer API_KEY
+    Caddy->>API: Proxy POST /learners/
 
     API->>API: verify_api_key()
-    API->>API: Validate request body<br/>(InteractionLogCreate)
-    API->>DB: INSERT INTO interacts<br/>(learner_id, item_id, kind)<br/>RETURNING *
+    API->>API: Validate request body<br/>(LearnerCreate)
+    API->>DB: INSERT INTO learner<br/>(name, email)<br/>RETURNING *
 
-    DB-->>API: New row:<br/>{id: 24, learner_id: 1,<br/>item_id: 1, kind: "attempt",<br/>created_at: ...}
+    DB-->>API: New row:<br/>{id: 6, name: "John Doe",<br/>email: "john-doe@email.com",<br/>enrolled_at: ...}
 
     API-->>Caddy: 201 Created<br/>JSON response
     Caddy-->>Browser: 201 Created
@@ -49,9 +49,9 @@ sequenceDiagram
     Note over Developer,pgAdmin: Verification Flow: Check database in pgAdmin
 
     Developer->>pgAdmin: Open pgAdmin<br/>http://<your-vm-ip-address>:<pgadmin-port>
-    Developer->>pgAdmin: Run SQL query:<br/>SELECT * FROM interacts<br/>ORDER BY id DESC LIMIT 5
+    Developer->>pgAdmin: Run SQL query:<br/>SELECT * FROM learner<br/>ORDER BY id DESC LIMIT 5
     pgAdmin->>DB: Execute SQL query
-    DB-->>pgAdmin: Return rows of 'interacts'
+    DB-->>pgAdmin: Return rows of 'learner'
     pgAdmin-->>Developer: Display data output<br/>(CSV format)
 
     Note right of Developer: Verify: New row matches<br/>the Swagger UI response
@@ -80,7 +80,7 @@ See:
   - [1.9. Write comments for the issue](#19-write-comments-for-the-issue)
     - [1.9.1. Comment 1: write the request as `fetch` code](#191-comment-1-write-the-request-as-fetch-code)
     - [1.9.2. Comment 2: write the response](#192-comment-2-write-the-response)
-    - [1.9.3. Comment 3: write the data output from `pgAdmin`](#193-comment-3-write-the-data-output-from-pgadmin)
+    - [1.9.3. Comment 3: attach the file with the data output from `pgAdmin`](#193-comment-3-attach-the-file-with-the-data-output-from-pgadmin)
     - [1.9.4. Comment 4: paste the ERD from `pgAdmin`](#194-comment-4-paste-the-erd-from-pgadmin)
   - [1.10. Close the issue](#110-close-the-issue)
 - [2. Acceptance criteria](#2-acceptance-criteria)
@@ -222,15 +222,14 @@ Title: `[Task] Observe System Component Interaction`
 
 ### 1.5. Send a request using `Swagger UI`
 
-1. In [`Swagger UI`](../../../wiki/swagger.md#what-is-swagger-ui), expand the `POST /interactions` endpoint.
+1. In [`Swagger UI`](../../../wiki/swagger.md#what-is-swagger-ui), expand the `POST /learners/` endpoint.
 2. Click `Try it out`.
-3. Enter a request body in [`JSON`](../../../wiki/file-formats.md#json) format, for example:
+3. Enter a [request payload](../../../wiki/http.md#http-request-payload) in [`JSON`](../../../wiki/file-formats.md#json) format, for example:
 
    ```json
    {
-     "learner_id": 1,
-     "item_id": 1,
-     "kind": "attempt"
+     "name": "John Doe",
+     "email": "john-doe@email.com"
    }
    ```
 
@@ -238,21 +237,20 @@ Title: `[Task] Observe System Component Interaction`
 
    In `Server response`, you should see:
    - `Code`: 201
-   - `Details`: `Response body`:
+   - `Details` -> `Response body`:
 
      ```json
      {
-        "id": 24,
-        "kind": "attempt",
-        "learner_id": 1,
-        "item_id": 1,
-        "created_at": "2026-02-28T15:47:19.979099"
+       "email": "john-doe@email.com",
+       "id": 6,
+       "enrolled_at": "2026-03-02 17:46:34.261004",
+       "name": "John Doe"
      }
      ```
 
 ### 1.6. Inspect the request using browser developer tools
 
-1. [Inspect the request to `/interactions`](../../../wiki/browser-developer-tools.md#inspect-a-request).
+1. [Inspect the request to `/learners`](../../../wiki/browser-developer-tools.md#inspect-a-request).
 
    **Note:** you've already completed the initial steps.
 
@@ -261,32 +259,33 @@ Title: `[Task] Observe System Component Interaction`
 ### 1.7. Verify in `pgAdmin`
 
 > [!NOTE]
-> The [API](../../../wiki/web-development.md#api) transformed the [`JSON`](../../../wiki/file-formats.md#json) from your request into a row in the `interacts` table.
+> The [API](../../../wiki/web-development.md#api) transformed the [`JSON`](../../../wiki/file-formats.md#json) from your request into a row in the `learner` table.
 
 1. [Open `pgAdmin`](../../../wiki/pgadmin.md#open-pgadmin).
-2. [Run a query](../../../wiki/pgadmin.md#run-the-query) on the `interacts` table:
+2. [Run a query](../../../wiki/pgadmin.md#run-the-query) on the `learner` table:
 
    ```sql
-   SELECT * FROM interacts ORDER BY id DESC LIMIT 5;
+   SELECT * FROM learner ORDER BY id DESC LIMIT 5;
    ```
 
 3. Verify that the data that you sent via [`Swagger UI`](../../../wiki/swagger.md#what-is-swagger-ui) appears as a row in the `Data Output` tab.
 
 ### 1.8. Send another request and check the database
 
-1. In [`Swagger UI`](../../../wiki/swagger.md#what-is-swagger-ui), send another `POST /interactions` request with different values.
+1. In [`Swagger UI`](../../../wiki/swagger.md#what-is-swagger-ui), send another `POST /learners/` request with different values.
 2. In [`pgAdmin`](../../../wiki/pgadmin.md#what-is-pgadmin), run the query again.
 3. Verify the new row appears.
+4. Try changing only the `"name"` or only the `"email"`. What happens then?
 
 ### 1.9. Write comments for the issue
 
 > [!NOTE]
-> Select the last successful `POST /interactions` request.
+> Select the last successful `POST /learners/` request.
 
 <!-- no toc -->
 - [Comment 1: write the request as `fetch` code](#191-comment-1-write-the-request-as-fetch-code)
 - [Comment 2: write the response](#192-comment-2-write-the-response)
-- [Comment 3: write the data output from `pgAdmin`](#193-comment-3-write-the-data-output-from-pgadmin)
+- [Comment 3: attach the file with the data output from `pgAdmin`](#193-comment-3-attach-the-file-with-the-data-output-from-pgadmin)
 - [Comment 4: paste the ERD from `pgAdmin`](#194-comment-4-paste-the-erd-from-pgadmin)
 
 #### 1.9.1. Comment 1: write the request as `fetch` code
@@ -306,7 +305,7 @@ Title: `[Task] Observe System Component Interaction`
 
    ~~~
    ```js
-   fetch("http://10.93.24.1:42002/interactions/", {
+   fetch("http://10.93.24.1:42002/learners/", {
       "headers": {
          "accept": "application/json",
    ...
@@ -330,34 +329,22 @@ Title: `[Task] Observe System Component Interaction`
 
    ~~~
    ```json
-   {"id":31,"kind":"attempt","learner_id":1,"item_id":1,"created_at":"2026-03-01 05:47:52.411701"}
+   {"id":6,"name":"John Doe","email":"john-doe@email.com","enrolled_at":"2026-03-02 17:46:34.261004"}
    ```
    ~~~
 
-#### 1.9.3. Comment 3: write the data output from `pgAdmin`
+#### 1.9.3. Comment 3: attach the file with the data output from `pgAdmin`
 
-1. [Copy the full data output](../../../wiki/pgadmin.md#copy-the-query-data-output) that you got when verifying in the `pgAdmin` that a new row appeared.
-2. Paste the output as [`CSV`](../../../wiki/file-formats.md#csv) in a [`Markdown` code block](../../../wiki/file-formats.md#markdown-code-block).
+1. [Save to file the data output](../../../wiki/pgadmin.md#copy-the-query-data-output) that you got when verifying in the `pgAdmin` that a new row appeared.
 
-   Format of the block (see in [`Markdown` preview](../../../wiki/vs-code.md#open-the-markdown-preview) if you read in `VS Code`):
-
-   ~~~
    ```csv
-   <data-output>
+   "id","name","email","enrolled_at"
+   6,"John Doe","john-doe@email.com","2026-03-02 17:46:34.261004"
+   5,"Eve Adams","eve@example.com","2025-10-15 11:00:00"
+   ...
    ```
-   ~~~
 
-   Example:
-
-   ~~~
-   ```csv
-   31	1	1	"attempt"	"2026-03-01 05:47:52.411701"
-   30	1	1	"attempt"	"2026-03-01 05:42:03.81748"
-   29	1	1	"attempt"	"2026-03-01 05:25:17.542977"
-   28	1	1	"attempt"	"2026-03-01 04:12:30.760001"
-   27	1	1	"attempt"	"2026-02-28 19:00:21.273761"
-   ```
-   ~~~
+2. Attach the file in the comment.
 
 #### 1.9.4. Comment 4: paste the ERD from `pgAdmin`
 

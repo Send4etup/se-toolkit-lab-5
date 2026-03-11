@@ -107,7 +107,7 @@ async def get_timeline(
     lab_num = lab.split("-")[-1]
     lab_pattern = f"Lab {lab_num}%"
 
-    from sqlalchemy import cast, Date, func
+    from sqlalchemy import func
     from sqlmodel import select
     from app.models.interaction import InteractionLog
     from app.models.item import ItemRecord
@@ -126,10 +126,12 @@ async def get_timeline(
     if not task_ids:
         return []
 
-    date_expr = cast(InteractionLog.created_at, Date)
+    date_expr = func.date(InteractionLog.created_at)
     result = await session.exec(
-        select(date_expr, func.count()).where(InteractionLog.item_id.in_(task_ids))
-        .group_by(date_expr).order_by(date_expr)
+        select(date_expr, func.count())
+        .where(InteractionLog.item_id.in_(task_ids))
+        .group_by(date_expr)
+        .order_by(date_expr)
     )
     return [{"date": str(row[0]), "submissions": row[1]} for row in result.all()]
 

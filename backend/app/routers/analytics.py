@@ -135,7 +135,7 @@ async def get_timeline(
     )
     return [{"date": str(row[0]), "submissions": row[1]} for row in result.all()]
 
-
+# dewdrop:ignore
 @router.get("/groups")
 async def get_groups(
     lab: str = Query(..., description="Lab identifier, e.g. 'lab-01'"),
